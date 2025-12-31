@@ -148,21 +148,24 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Agrega ESTO al final, ANTES de app.listen():
 // ============================================
-// SERVIR FRONTEND REACT (solo en producción)
+// SERVIR ARCHIVOS ESTÁTICOS (Frontend)
 // ============================================
-if (process.env.NODE_ENV === 'production') {
-    // Servir archivos estáticos del frontend
-    app.use(express.static(path.join(__dirname, '../frontend/build')));
-    
-    // Para cualquier ruta no manejada por la API, servir el index.html
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-    });
-}
-// ============================================
+const path = require('path');
 
+// Servir archivos estáticos del frontend si existe
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Ruta para el frontend
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Ruta para la aplicación React
+app.get('/app*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+// ============================================
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`Servidor backend corriendo en http://localhost:${PORT}`);

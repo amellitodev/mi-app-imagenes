@@ -1,49 +1,27 @@
-# Build stage
-FROM node:18-alpine AS builder
+# ============================================
+# BACKEND ONLY - Simple deployment
+# ============================================
 
-WORKDIR /app
-
-# Copy package files
-COPY backend/package*.json ./backend/
-COPY frontend/package*.json ./frontend/
-
-# Install backend dependencies
-WORKDIR /app/backend
-RUN npm ci --only=production
-
-# Install frontend dependencies and build
-WORKDIR /app/frontend
-RUN npm ci
-COPY frontend/ .
-RUN npm run build
-
-# Copy backend source
-WORKDIR /app
-COPY backend/ ./backend/
-
-# Production stage
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy built backend
-COPY --from=builder /app/backend ./backend
+# Copiar solo el backend
+COPY backend/package*.json ./
+RUN npm ci --only=production
 
-# Copy built frontend
-COPY --from=builder /app/frontend/build ./frontend/build
+# Copiar código del backend
+COPY backend/ .
 
-# Create uploads directory
-RUN mkdir -p backend/uploads && chmod 755 backend/uploads
+# Crear carpeta para uploads
+RUN mkdir -p uploads && chmod 755 uploads
 
-# Set working directory to backend
-WORKDIR /app/backend
-
-# Environment variables
+# Variables de entorno
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# Expose port
+# Exponer puerto
 EXPOSE 5000
 
-# Start command
+# Comando para iniciar
 CMD ["node", "server.js"]
