@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
-const path = require('path');
+const path = require('path'); // <-- SOLO UNA VEZ aquí
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -10,10 +10,9 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Crear carpeta uploads si no existe
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -21,7 +20,7 @@ if (!fs.existsSync(uploadsDir)) {
 // Configuración de Multer para subir imágenes
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/');
+        cb(null, uploadsDir);
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -45,6 +44,19 @@ const upload = multer({
     }
 });
 
+// Función para generar URL correcta
+const generateImageUrl = (req, filename) => {
+    // Si estamos en producción y tenemos un dominio específico
+    if (process.env.NODE_ENV === 'production') {
+        return `https://images.dokploy.com/uploads/${filename}`;
+    }
+    // Para desarrollo local
+    return `${req.protocol}://${req.get('host')}/uploads/${filename}`;
+};
+
+// Servir archivos estáticos DESPUÉS de crear la carpeta
+app.use('/uploads', express.static(uploadsDir));
+
 // Ruta para subir una imagen
 app.post('/api/upload', upload.single('image'), (req, res) => {
     try {
@@ -52,7 +64,7 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
             return res.status(400).json({ error: 'No se subió ninguna imagen' });
         }
 
-        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        const imageUrl = generateImageUrl(req, req.file.filename);
         
         res.json({
             success: true,
@@ -76,7 +88,7 @@ app.post('/api/upload-multiple', upload.array('images', 10), (req, res) => {
 
         const uploadedImages = req.files.map(file => ({
             filename: file.filename,
-            url: `${req.protocol}://${req.get('host')}/uploads/${file.filename}`,
+            url: generateImageUrl(req, file.filename),
             size: file.size,
             mimetype: file.mimetype
         }));
@@ -104,7 +116,7 @@ app.get('/api/images', (req, res) => {
                 .filter(file => /\.(jpe?g|png|gif|webp)$/i.test(file))
                 .map(file => ({
                     filename: file,
-                    url: `${req.protocol}://${req.get('host')}/uploads/${file}`,
+                    url: generateImageUrl(req, file),
                     path: `/uploads/${file}`
                 }));
 
@@ -144,30 +156,74 @@ app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'OK', 
         message: 'Servidor de imágenes funcionando',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+        domain: 'https://images.dokploy.com'
     });
 });
 
 // ============================================
 // SERVIR ARCHIVOS ESTÁTICOS (Frontend)
 // ============================================
-const path = require('path');
 
-// Servir archivos estáticos del frontend si existe
-app.use(express.static(path.join(__dirname, 'public')));
+// Servir archivos estáticos del frontend si existe la carpeta
+const publicDir = path.join(__dirname, 'public');
+if (fs.existsSync(publicDir)) {
+    app.use(express.static(publicDir));
+    
+    // Ruta para el frontend
+    app.get('/', (req, res) => {
+        res.sendFile(path.join(publicDir, 'index.html'));
+    });
 
-// Ruta para el frontend
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+    // Ruta para la aplicación React
+    app.get('/app*', (req, res) => {
+        res.sendFile(path.join(publicDir, 'index.html'));
+    });
+} else {
+    // Si no hay frontend, mostrar mensaje
+    app.get('/', (req, res) => {
+        res.json({
+            message: 'API de subida de imágenes funcionando',
+            endpoints: {
+                upload: 'POST /api/upload',
+                uploadMultiple: 'POST /api/upload-multiple',
+                getImages: 'GET /api/images',
+                deleteImage: 'DELETE /api/image/:filename',
+                health: 'GET /api/health'
+            },
+            docs: 'https://github.com/amellitodev/mi-app-imagenes'
+        });
+    });
+}
 
-// Ruta para la aplicación React
-app.get('/app*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 // ============================================
-// Iniciar servidor
-app.listen(PORT, () => {
-    console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
-    console.log(`Acceso a imágenes: http://localhost:${PORT}/uploads/`);
+// MANEJO DE ERRORES
+// ============================================
+app.use((err, req, res, next) => {
+    console.error('Error:', err.stack);
+    res.status(500).json({
+        error: 'Algo salió mal',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor'
+    });
 });
+
+// ============================================
+// INICIAR SERVIDOR
+// ============================================
+const startServer = () => {
+    try {
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log('✅ Servidor iniciado exitosamente');
+            console.log(`📡 Puerto: ${PORT}`);
+            console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`📁 Uploads: /uploads/`);
+            console.log(`🏠 Frontend: ${fs.existsSync(publicDir) ? 'Sí' : 'No'}`);
+        });
+    } catch (error) {
+        console.error('❌ Error al iniciar servidor:', error);
+        process.exit(1);
+    }
+};
+
+startServer();
