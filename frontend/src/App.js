@@ -5,7 +5,7 @@ import { FaUpload, FaTrash, FaImage, FaLink, FaCopy } from 'react-icons/fa';
 import './App.css';
 
 // Configuración de Axios (ajusta la URL según tu despliegue)
-const API_URL = 'https://tu-app.dokploy.app';
+const API_URL = 'https://images.dokploy.com';
 
 function App() {
     const [images, setImages] = useState([]);

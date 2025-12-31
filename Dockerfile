@@ -1,20 +1,16 @@
-# ============================================
-# BACKEND ONLY - Simple deployment
-# ============================================
-
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Copiar solo el backend
+# 1. Copiar backend
 COPY backend/package*.json ./
-RUN npm ci --only=production
+RUN npm install --production
 
-# Copiar código del backend
+# 2. Copiar todo el backend
 COPY backend/ .
 
-# Crear carpeta para uploads
-RUN mkdir -p uploads && chmod 755 uploads
+# 3. Crear carpeta uploads
+RUN mkdir -p uploads
 
 # Variables de entorno
 ENV NODE_ENV=production
@@ -23,5 +19,5 @@ ENV PORT=5000
 # Exponer puerto
 EXPOSE 5000
 
-# Comando para iniciar
+# Comando de inicio
 CMD ["node", "server.js"]
