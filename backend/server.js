@@ -13,7 +13,7 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Crear carpeta uploads si no existe
-const uploadsDir = path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -147,6 +147,21 @@ app.get('/api/health', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+
+// Agrega ESTO al final, ANTES de app.listen():
+// ============================================
+// SERVIR FRONTEND REACT (solo en producción)
+// ============================================
+if (process.env.NODE_ENV === 'production') {
+    // Servir archivos estáticos del frontend
+    app.use(express.static(path.join(__dirname, '../frontend/build')));
+    
+    // Para cualquier ruta no manejada por la API, servir el index.html
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+    });
+}
+// ============================================
 
 // Iniciar servidor
 app.listen(PORT, () => {
