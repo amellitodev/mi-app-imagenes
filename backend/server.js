@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 5000;
 
 // Después de const app = express();
 app.use(cors({
-    origin: ['https://images.dokploy.com', 'http://localhost:3000'],
+    origin: ['https://images.exatronclouds.com', 'http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -57,7 +57,7 @@ const upload = multer({
 const generateImageUrl = (req, filename) => {
     // Si estamos en producción y tenemos un dominio específico
     if (process.env.NODE_ENV === 'production') {
-        return `https://images.dokploy.com/uploads/${filename}`;
+        return `https://images.exatronclouds.com/uploads/${filename}`;
     }
     // Para desarrollo local
     return `${req.protocol}://${req.get('host')}/uploads/${filename}`;
@@ -167,7 +167,7 @@ app.get('/api/health', (req, res) => {
         message: 'Servidor de imágenes funcionando',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV,
-        domain: 'https://images.dokploy.com'
+        domain: 'https://images.exatronclouds.com'
     });
 });
 
